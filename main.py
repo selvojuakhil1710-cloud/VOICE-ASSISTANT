@@ -5,6 +5,7 @@ import webbrowser
 
 # Initialize text-to-speech engine
 engine = pyttsx3.init()
+engine.setProperty('rate', 170)
 
 def speak(text):
     """Convert text to speech"""
@@ -14,35 +15,44 @@ def speak(text):
 def get_audio():
     """Capture voice input"""
     r = sr.Recognizer()
-    with sr.Microphone() as source:
-        print("Listening...")
-        r.pause_threshold = 1
-        
-        audio = r.listen(source)
 
     try:
+        with sr.Microphone() as source:
+            print("Listening...")
+            r.adjust_for_ambient_noise(source, duration=0.5)
+            audio = r.listen(source, timeout=5, phrase_time_limit=5)
+
         print("Recognizing...")
         query = r.recognize_google(audio, language='en-IN')
         print(f"You said: {query}\n")
-    except Exception:
-        speak("Sorry, I didn't catch that. Please say it again.")
+        return query.lower()
+
+    except sr.WaitTimeoutError:
+        print("Listening timed out")
         return ""
-    
-    return query.lower()
+
+    except sr.UnknownValueError:
+        speak("Sorry, I didn't understand that.")
+        return ""
+
+    except sr.RequestError:
+        speak("Network error. Please check your internet.")
+        return ""
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return ""
 
 def tell_time():
-    """Tell current time"""
     now = datetime.datetime.now().strftime("%I:%M %p")
     speak(f"The time is {now}")
 
 def tell_date():
-    """Tell today's date"""
     today = datetime.date.today()
     speak(f"Today's date is {today.strftime('%B %d, %Y')}")
 
 def search_web(query):
-    """Search something on Google"""
-    speak("Searching Google...")
+    speak("Searching Google")
     webbrowser.open(f"https://www.google.com/search?q={query}")
 
 # Main program
@@ -51,6 +61,9 @@ if __name__ == "__main__":
 
     while True:
         command = get_audio()
+
+        if command == "":
+            continue
 
         if "hello" in command:
             speak("Hello! How are you?")
@@ -65,12 +78,12 @@ if __name__ == "__main__":
             tell_date()
 
         elif "search for" in command:
-            term = command.replace("search for", "")
+            term = command.replace("search for", "").strip()
             search_web(term)
 
         elif "stop" in command or "exit" in command or "quit" in command:
             speak("Goodbye! Have a great day!")
             break
 
-        elif command != "":
+        else:
             speak("Sorry, I can only do basic tasks like telling time, date, and searching.")
